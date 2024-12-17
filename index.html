@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Week Exporter</title>
+    <!-- Load Office JavaScript API -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script>
+        Office.onReady(function (info) {
+            // Office is ready
+            if (info.host === Office.HostType.Outlook) {
+                // Associate the action with the button
+                document.getElementById("exportButton").onclick = exportWeekCalendar;
+            }
+        });
+
+        // Function to export the week's calendar events
+        function exportWeekCalendar() {
+            const today = new Date();
+            const firstDayOfWeek = today.getDate() - today.getDay(); // Sunday
+            const startOfWeek = new Date(today.setDate(firstDayOfWeek));
+            const endOfWeek = new Date(today.setDate(firstDayOfWeek + 6)); // Saturday
+
+            // Format dates to match Outlook API format (ISO 8601)
+            const start = startOfWeek.toISOString();
+            const end = endOfWeek.toISOString();
+
+            // Fetch events from the Outlook calendar API
+            Office.context.mailbox.item.calendar.getEventsAsync(
+                { start: start, end: end },
+                function (result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        const events = result.value;
+                        exportToCSV(events); // Call the function to export events to CSV
+                    } else {
+                        console.error("Error fetching events: " + result.error.message);
+                    }
+                }
+            );
+        }
+
+        // Function to export events to a CSV file
+        function exportToCSV(events) {
+            let csvContent = "Subject,Start Time,End Time,Location\n";
+
+            events.forEach(event => {
+                const subject = event.subject;
+                const startTime = event.start;
+                const endTime = event.end;
+                const location = event.location ? event.location.displayName : "No location";
+
+                csvContent += `${subject},${startTime},${endTime},${location}\n`;
+            });
+
+            // Create a downloadable CSV file
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "week_calendar_events.csv");
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</head>
+<body>
+    <h1>Export Calendar Events for This Week</h1>
+    <button id="exportButton">Export Week's Calendar</button>
+</body>
+</html>
